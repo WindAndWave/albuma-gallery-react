@@ -2,11 +2,12 @@ require('normalize.css/normalize.css');
 require('styles/App.scss');
 
 import React from 'react';
-import ReactDOM from 'react-dom';
 
 
+//获取图片相关数据
 var imageData = require('../sources/imageData.json');
 
+//通过自执行函数，将图片转化成正确的url
 imageData = (function getImageUrl(imageDataArr){
   for (var i = 0 ; i< imageDataArr.length ; i++){
      var singleImageData = imageDataArr[i];
@@ -15,21 +16,43 @@ imageData = (function getImageUrl(imageDataArr){
   }
  return imageDataArr;
 })(imageData);
+
+/**
+ * 获取区间内的一个随机数
+ */
  function getRangeRandom(low,high){
-  return  Math.ceil(Math.random() * (high - low))+ low;
+  return  Math.ceil(Math.random() * (high - low)+ low);
 
  }
+
+
+/**
+ * 获取0-30°之间内的一个随机正负值
+ */
+function getRotateRandom(){
+
+  return  ((Math.random() > 0.5 ? '' : '-') + Math.ceil(Math.random() * 30));
+
+}
 class ImgFigure extends React.Component {
   render() {
     var styleObj = {};
+    //如果props属性中指定了这张图片的位置，则使用props指定的参数
     if(this.props.arrange.pos){
       styleObj = this.props.arrange.pos;
     }
+    //如果图片的旋转角度的值不为0，则添加角度
+    if (this.props.arrange.rotate) {
+      (['-moz-', '-ms-', '-wekit-', '']).forEach(function (value) {
+        styleObj[value +'transform'] = 'rotate('+this.props.arrange.rotate+'deg)';
+      }.bind(this))
+
+    }
     return (
-        <figure className="img-figure" style = {styleObj}>
+        <figure className="img-figure" ref ="figure" style = {styleObj}>
           <img src={ this.props.data.imageUrl}
               alt={ this.props.data.title}
-               style={{width:"240px",height:"240px"}}
+               style={{width:'200px',height:'200px'}}
           />
           <figcaption>
           <h2 className="img-title">
@@ -45,8 +68,46 @@ class ImgFigure extends React.Component {
 
 
 class AppComponent extends React.Component {
+  constructor(props){
+    super(props);
+    this.Constant={
+      centerPos:{
+        left:0,
+        right:0
+      },
+      hposRange:{
+        leftSecX:[0,0],
+        rightSecX:[0,0],
+        y:[0,0]
+      },
+      vposRange:{
+        x:[0,0],
+        topY:[0,0]
 
-  rearrange  (centerindex){
+      }
+
+    }
+    this.state={
+      imgsArrangeArr:[
+        /*{
+          pos:{
+            left:'0',
+            top:'0'
+          },
+          rotate: 0
+        }
+        */
+
+      ]
+    };
+
+  }
+
+  /**
+   * 重新布局所有图片
+   * @param centerIndex 指定居中排布那个图片
+   */
+  rearrange  (centerIndex){
      var imgsArrangeArr = this.state.imgsArrangeArr,
        Constant = this.Constant,
        centerPos = Constant.centerPos,
@@ -59,107 +120,103 @@ class AppComponent extends React.Component {
        vPosRangeX = vPosRange.x,
 
        imgsArrangeTopArr = [] ,
-       topImgNum = Math.ceil(Math.random() * 2),
+       topImgNum = Math.floor(Math.random() * 2), // 取一个或者不取
        topImgSpliceIndex = 0,
-       imgsArrangeCenterArr = imgsArrangeArr.slice(centerindex,1);
+
+       imgsArrangeCenterArr = imgsArrangeArr.splice(centerIndex,1);
 
 
+       //首先居中 centerIndex 的图片
        imgsArrangeCenterArr[0].pos=centerPos;
-       topImgSpliceIndex = Math.ceil(Math.random()*(imgsArrangeArr.length - topImgNum))
-       imgsArrangeTopArr = imgsArrangeArr.slice(topImgSpliceIndex,topImgNum);
+       //居中的图片不需要旋转
+       imgsArrangeCenterArr[0].rotate = 0;
+       //取出要布局上侧的图片的状态信息
+       topImgSpliceIndex = Math.ceil(Math.random() * (imgsArrangeArr.length - topImgNum));
+       imgsArrangeTopArr = imgsArrangeArr.splice(topImgSpliceIndex,topImgNum);
 
        imgsArrangeTopArr.forEach(function(value,index){
-         imgsArrangeTopArr[index].pos = {
-           top : getRangeRandom(vPosRangeTopY[0],vPosRangeTopY[1]),
-           left:getRangeRandom(vPosRangeX[0],vPosRangeX[1])
+         imgsArrangeTopArr[index] = {
+           pos :{
+             top : getRangeRandom(vPosRangeTopY[0],vPosRangeTopY[1]),
+             left:getRangeRandom(vPosRangeX[0],vPosRangeX[1])
+           },
+           rotate: getRotateRandom()
          }
 
        });
-       for(var i = 0 ,j = imgsArrangeArr.length , k = j / 2 ; i < j ; i++){
+
+       //布局左右两侧的图片
+       for(var i = 0 ,j = imgsArrangeArr.length , k = j/ 2 ; i < j ; i++){
        var hPosRangeLORX = null ;
+
+       //前半部布局左边，右半部份布局右边
          if(i < k ){
             hPosRangeLORX = hPosRangeleftSecX;
          }else {
            hPosRangeLORX = hPosRangeRightSecX;
          }
-         imgsArrangeArr[i].pos = {
-           top : getRangeRandom(hPosRangeY[0],hPosRangeY[1]),
-           left : getRangeRandom(hPosRangeLORX[0],hPosRangeLORX[1])
-         }
+         imgsArrangeArr[i]={
+           pos:{
+               top : getRangeRandom(hPosRangeY[0],hPosRangeY[1]),
+               left : getRangeRandom(hPosRangeLORX[0],hPosRangeLORX[1])
+           },
+           rotate: getRotateRandom()
+
+         };
       }
-      if(imgsArrangeTopArr && imgsArrangeTopArr[0]){
-         imgsArrangeArr.slice(topImgSpliceIndex,0,imgsArrangeTopArr[0]);
+     if(imgsArrangeTopArr && imgsArrangeTopArr[0]){
+         imgsArrangeArr.splice(topImgSpliceIndex,0,imgsArrangeTopArr[0]);
       }
-      imgsArrangeArr.slice(centerindex,0,imgsArrangeCenterArr[0]);
+      imgsArrangeArr.splice(centerIndex,0,imgsArrangeCenterArr[0]);
       this.setState({
         imgsArrangeArr:imgsArrangeArr
       })
     }
 
-  constructor(props){
-    super(props);
-    this.Constant={
-      centerPos:{
-        left:0,
-          right:0
-      },
-      hposRange:{
-        leftSecX:[0,0],
-          rightSecX:[0,0],
-          y:[0,0]
-      },
-      vposRange:{
-        x:[0,0],
-          topY:[0,0]
 
-      }
 
-    }
-    this.state={
-      imgsArrangeArr:[
-        {
-          pos:{
-            left:'0',
-            top:'0'
-          }
-        }
-
-      ]
-    }
-
-  }
-
+  //组件加载后，为每张图片计算其位置的范围
   componentDidMount (){
-   var stageDOM = ReactDOM.findDOMNode(this.refs.stage),
+
+    //首先取得舞台的大小
+   var stageDOM = this.refs.stage,
      stageW = stageDOM.scrollWidth,
      stageH = stageDOM.scrollHeight,
      halfStageW = Math.ceil(stageW / 2),
      halfStageH = Math.ceil(stageH / 2);
-    var imgFigureDom = ReactDOM.findDOMNode(this.refs.imgFigure0),
+
+   //拿到一个imageUnits 大小
+    var imgFigureDom = this.refs.imgFigure0.refs.figure,
       imgW = imgFigureDom.scrollWidth,
       imgH = imgFigureDom.scrollHeight,
-      halfimgW = Math.ceil(stageW / 2),
-      halfimgH = Math.ceil(stageH / 2);
+      halfImgW = Math.ceil(imgW / 2),
+      halfImgH = Math.ceil(imgH / 2);
 
+    //计算中心图片位置点
     this.Constant.centerPos = {
-      left : halfStageW - halfimgW,
-      top: halfStageH - halfimgH
-    }
-    this.Constant.hposRange.leftSecX[0] = -halfimgW;
-    this.Constant.hposRange.leftSecX[1] = halfStageW - halfimgW * 3;
-    this.Constant.hposRange.rightSecX[0] = halfStageW - halfimgW;
-    this.Constant.hposRange.rightSecX[1] = stageW - halfimgW;
-    this.Constant.hposRange.y[0] = - halfimgH;
-    this.Constant.hposRange.y[1] = stageH - halfimgH;
+      left : halfStageW - halfImgW,
+      top: halfStageH - halfImgH
+    };
+    // 计算左侧，右侧区域图片排布位置的取值范围
+    this.Constant.hposRange.leftSecX[0] = -halfImgW;
+    this.Constant.hposRange.leftSecX[1] = halfStageW - halfImgW * 3;
 
-    this.Constant.vposRange.topY[0] = -halfimgH;
-    this.Constant.vposRange.topY[1] = halfStageH -halfimgH * 3;
-    this.Constant.vposRange.x[0] =halfimgW - imgW;
-    this.Constant.vposRange.x[1] = halfimgW;
+    this.Constant.hposRange.rightSecX[0] = halfStageW + halfImgW;
+    this.Constant.hposRange.rightSecX[1] = stageW - halfImgW;
+    this.Constant.hposRange.y[0] = - halfImgH;
+    this.Constant.hposRange.y[1] = stageH - halfImgH;
+
+
+    // 计算上侧区域图片排布位置的取值范围
+    this.Constant.vposRange.topY[0] = -halfImgH;
+    this.Constant.vposRange.topY[1] = halfStageH -halfImgH * 3;
+    this.Constant.vposRange.x[0] =halfStageW - imgW;
+    this.Constant.vposRange.x[1] = halfStageW;
+
     this.rearrange(0);
   }
   render() {
-    var controlerUnits = [],
+    var controllerUnits = [],
       imgUnits = [];
     imageData.forEach(function(value,index){
       if(!this.state.imgsArrangeArr[index]){
@@ -167,11 +224,14 @@ class AppComponent extends React.Component {
           pos:{
             left:0,
             top:0
-          }
-        }
+          },
+          rotate: 0
+        };
 
       }
-       imgUnits.push(<ImgFigure data = {value} ref = {'imgFigure'+index} key={'imgFigures'+index} arrange = {this.state.imgsArrangeArr[index]}/>);
+       imgUnits.push(
+         <ImgFigure data = {value} ref = {'imgFigure'+index} key={'imgFigures'+index} arrange = {this.state.imgsArrangeArr[index]}/>
+       );
     }.bind(this));
 
     return (
@@ -182,7 +242,7 @@ class AppComponent extends React.Component {
 
         </section>
         <nav className="controller-nav">
-          {controlerUnits}
+          {controllerUnits}
         </nav>
       </section>
     );
